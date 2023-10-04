@@ -1,0 +1,16 @@
+Description of dataset:
+
+male: 1 if the parolee is male, 0 if female
+race: 1 if the parolee is white, 2 otherwise
+age: the parolee’s age (in years) when he or she was released from prison
+state: a code for the parolee’s state. 2 is Kentucky, 3 is Louisiana, 4 is Virginia, and 1 is any other state. The three states were selected due to having a high representation in the dataset.
+time.served: the number of months the parolee served in prison (limited by the inclusion criteria to not exceed 6 months).
+max.sentence: the maximum sentence length for all charges, in months (limited by the inclusion criteria to not exceed 18 months).
+m
+ultiple.offenses: 1 if the parolee was incarcerated for multiple offenses, 0 otherwise.
+
+crime: a code for the parolee’s main crime leading to incarceration. 2 is larceny, 3 is drug-related crime, 4 is driving-related crime, and 1 is any other crime.
+
+violator: 1 if the parolee violated the parole, and 0 if the parolee completed the parole without violation.
+
+
