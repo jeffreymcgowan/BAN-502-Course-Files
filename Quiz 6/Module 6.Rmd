@@ -1,0 +1,242 @@
+---
+title: "Module 6"
+author: "Jeffrey McGowan"
+date: "10/2/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+rm(list=ls()) #clean env
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r Packages}
+
+# Helper packages
+library(tidyverse)
+library(tidymodels)
+library(cluster)
+library(factoextra)
+library(dendextend)
+
+```
+
+```{r Load Data, echo=FALSE}
+
+trucks <- read_csv("trucks-1.csv")
+
+```
+
+```{r Question 1 -- Plot Relationships}
+
+#Seems to be an approximately similar number of failures in the training set 
+ggplot(trucks, aes(x=Distance, y=Speeding)) + 
+  geom_point() + 
+  theme_bw()
+
+#B. The data points are arranged in what appear to be four clusters
+#C. Longer distance drivers appear more likely to speed 
+
+```
+```{r Question 2}
+
+# Question 2: Create a new data frame called “trucks_cleaned” that contains the scaled and centered variables. Two notes: 1) The “predictor” variables in the recipe are “Distance” and “Speeding” and 2) There is no need to create dummy variables as there are no categorical variables in the data. Be sure that you do NOT include the Driver_ID variable.
+# 
+# What is the maximum value (to four decimal places) of the Distance variable in the scaled dataset?
+
+# summary(trucks)
+# str(trucks)
+# glimpse(trucks)
+
+trucks = trucks %>%
+  drop_na() #row-wise deletion of missingness
+
+# str(trucks)
+# summary(trucks)
+
+kmeans_recipe = recipe(~ Distance + Speeding, trucks) 
+
+trucks_dummy = kmeans_recipe %>% 
+  step_dummy(all_nominal(), one_hot = FALSE) %>%
+  step_scale(all_numeric()) %>%
+  step_center(all_numeric()) 
+
+trucks_dummy = prep(trucks_dummy, trucks) #prepares the recipe
+
+trucks_cleaned = bake(trucks_dummy, trucks) #applies the recipe and yields a data frame
+
+summary(trucks_cleaned$Distance) #Max = 3.1560 
+
+
+```
+
+```{r Question 3}
+
+# Question 3 Use k-Means clustering with two clusters (k=2) to cluster the “trucks_cleaned” data frame. Use a random number seed of 64. Use augment to add the resulting clusters object to the the “trucks” data frame. Design an appropriate visualization to visualize the clusters.
+# 
+# Which statement best describes the resulting clusters?
+# A. Drivers with shorter distances are in one cluster and those with longer distances are in another
+# B. Drivers with a higher proportion of speeding are in one cluster and those with a lower proportion of speeding are in another
+
+#A. Drivers with shorter distances are in one cluster and those with longer distances are in another
+#XB. Drivers with a higher proportion of speeding are in one cluster and those with a lower proportion of speeding are in another
+#X------> C. Neither of these statements apply to the resulting clusters
+
+set.seed(64)
+clusts = 
+  tibble(k = 2) %>%
+  mutate(
+    kclust = map(k, ~kmeans(trucks_cleaned, .x)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, trucks_cleaned)
+  )
+
+clusts
+
+
+clusters = 
+  clusts %>%
+  unnest(cols = c(tidied))
+
+assignments = 
+  clusts %>% 
+  unnest(cols = c(augmented))
+
+clusterings = 
+  clusts %>%
+  unnest(cols = c(glanced))
+
+
+clusters = kmeans(trucks_cleaned, 2)
+
+```
+
+```{r Plotting Question 2}
+
+p1 = 
+  ggplot(assignments, aes(x = Distance, y = Speeding)) +
+  geom_point(aes(color = .cluster), alpha = 0.8) + 
+  facet_wrap(~ k)
+p1
+```
+```{r Augmenting Original Dataset}
+
+trucks_augmented = augment(clusters, trucks)
+str(trucks_augmented)
+
+```
+
+```{r Plot Augments}
+
+ggplot(trucks_augmented, aes(x=Distance,y=Speeding,color=factor(.cluster))) + geom_point()
+
+```
+
+
+```{r Question 4}
+
+# Question 4: Create a visualization to show how the clusters appear from values of k from 1 to 8. Use a random number seed of 412. Which value of k appears to be most appropriate for this data?
+
+# ----------> 4
+
+set.seed(412)
+clusts = 
+  tibble(k = 1:8) %>%
+  mutate(
+    kclust = map(k, ~kmeans(trucks_cleaned, .x)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, trucks_cleaned)
+  )
+
+clusts
+
+clusters = 
+  clusts %>%
+  unnest(cols = c(tidied))
+
+assignments = 
+  clusts %>% 
+  unnest(cols = c(augmented))
+
+clusterings = 
+  clusts %>%
+  unnest(cols = c(glanced))
+
+p1 = 
+  ggplot(assignments, aes(x = Distance, y = Speeding)) +
+  geom_point(aes(color = .cluster), alpha = 0.8) + 
+  facet_wrap(~ k)
+p1
+
+```
+
+
+
+
+
+```{r Question 5}
+
+# Question 5: Create a plot of k versus within cluster sum of squares. Hint: We did this in the first clustering lecture. What number of clusters appears to be ideal based on this plot? -------> Not 3? Maybe 4?
+
+ggplot(clusterings, aes(k, tot.withinss)) +
+  geom_line() +
+  geom_point() + theme_bw()
+
+
+```
+
+
+
+```{r Question 6}
+
+# Question 6: Repeat Question 3 for the number of clusters that you correctly identifed in Question 5. Use the same random number seed as in Task 3. Create an appropriate visualization.
+
+# Which statements (select all that apply) appear to be most apparent about the clusters created in this question?
+# 
+# A. One cluster is composed of short distance drivers with a low proportion of speeding. YES
+# B. One cluster is composed of long distance drivers with a high proportion of speeding. YES
+# C. One cluster is composed of long distance drivers with a low proportion of speeding. YES
+# D. One cluster is composed of short distance drivers with a high proportion of speeding. xNO YES?
+
+set.seed(64)
+clusts = 
+  tibble(k = 4) %>%
+  mutate(
+    kclust = map(k, ~kmeans(trucks_cleaned, .x)),
+    tidied = map(kclust, tidy),
+    glanced = map(kclust, glance),
+    augmented = map(kclust, augment, trucks_cleaned)
+  )
+
+clusts
+
+
+clusters = 
+  clusts %>%
+  unnest(cols = c(tidied))
+
+assignments = 
+  clusts %>% 
+  unnest(cols = c(augmented))
+
+clusterings = 
+  clusts %>%
+  unnest(cols = c(glanced))
+
+
+clusters = kmeans(trucks_cleaned, 4)
+
+trucks_augmented = augment(clusters, trucks)
+str(trucks_augmented)
+
+p1 = 
+  ggplot(assignments, aes(x = Distance, y = Speeding)) +
+  geom_point(aes(color = .cluster), alpha = 0.8) + 
+  facet_wrap(~ k)
+p1
+
+```
